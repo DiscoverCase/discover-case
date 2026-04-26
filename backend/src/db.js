@@ -1,11 +1,11 @@
 const { Pool } = require('pg');
 
 const pool = new Pool({
-  host: process.env.PGHOST || 'aws-1-us-east-2.pooler.supabase.com',
-  database: process.env.PGDATABASE || 'postgres',
-  user: process.env.PGUSER || 'postgres.fvzxeyflnzpyqcdayacc',
-  password: process.env.PGPASSWORD || 'P9lVFj2ZM1AscMFE',
-  port: Number(process.env.PGPORT) || 5432,
+  host: process.env.PGHOST,
+  database: process.env.PGDATABASE,
+  user: process.env.PGUSER,
+  password: process.env.PGPASSWORD,
+  port: Number(process.env.PGPORT),
   // Supabase and other managed Postgres providers require SSL
   ssl: process.env.PGHOST
     ? { rejectUnauthorized: false }
