@@ -2,16 +2,22 @@
   "name": "discovercase",
   "private": true,
   "description": "Jackbox-style party game platform",
+  "license": "MIT",
   "scripts": {
     "dev": "npm run dev:frontend",
     "install:all": "npm install --prefix backend && npm install --prefix frontend",
     "dev:backend": "npm run dev --prefix backend",
     "dev:frontend": "npm run dev --prefix frontend",
+<<<<<<< HEAD
     "build": "npm run build --prefix frontend",
     "start": "npm run start --prefix backend",
     "docs:backend": "jsdoc -c backend/jsdoc.json",
     "docs:frontend": "jsdoc -c frontend/jsdoc.json",
     "docs:generate": "npm run docs:backend && npm run docs:frontend"
+=======
+    "build": "npm ci --prefix frontend --include=dev && npm run build --prefix frontend",
+    "start": "npm run start --prefix backend"
+>>>>>>> e9cfb3fe5a6f9575bc91b84b68ed25fa2e8a04bb
   },
   "dependencies": {
     "lucide-react": "^0.563.0"

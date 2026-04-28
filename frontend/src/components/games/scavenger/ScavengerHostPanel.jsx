@@ -8,9 +8,11 @@ import {
   getScavengerState,
   reviewScavengerSubmission,
 } from '../../../api';
+import { useSocket } from '../../../useSocket';
 import './ScavengerHostPanel.css';
 
 export default function ScavengerHostPanel() {
+  const { roomCode } = useSocket();
   const [challenges, setChallenges] = useState(null);
   const [state, setState] = useState(null);
   const [error, setError] = useState('');
@@ -21,7 +23,10 @@ export default function ScavengerHostPanel() {
   useEffect(() => {
     async function load() {
       try {
-        const [cd, sd] = await Promise.all([getScavengerChallenges(), getScavengerState()]);
+        const [cd, sd] = await Promise.all([
+          getScavengerChallenges(),
+          getScavengerState({ groupCode: roomCode || undefined }),
+        ]);
         setChallenges(cd);
         setState(sd);
       } catch (err) {
@@ -29,18 +34,18 @@ export default function ScavengerHostPanel() {
       }
     }
     load();
-  }, []);
+  }, [roomCode]);
 
   useEffect(() => {
     let cancelled = false;
     const id = setInterval(async () => {
       try {
-        const sd = await getScavengerState();
+        const sd = await getScavengerState({ groupCode: roomCode || undefined });
         if (!cancelled) setState(sd);
       } catch {}
     }, 5000);
     return () => { cancelled = true; clearInterval(id); };
-  }, []);
+  }, [roomCode]);
 
   function getChallengeTitle(challengeId) {
     if (!challenges?.categories) return challengeId;
@@ -56,7 +61,12 @@ export default function ScavengerHostPanel() {
     setReviewingId(submissionId);
     setError('');
     try {
-      const { state: newState } = await reviewScavengerSubmission({ submissionId, approved, comment });
+      const { state: newState } = await reviewScavengerSubmission({
+        submissionId,
+        approved,
+        comment,
+        groupCode: roomCode || undefined,
+      });
       setState(newState);
       setEditingId(null);
       setCommentDrafts((prev) => { const n = { ...prev }; delete n[submissionId]; return n; });
@@ -146,11 +156,17 @@ export default function ScavengerHostPanel() {
 function SubmissionCard({ sub, title, isEditing, isReviewing, commentDraft, onCommentChange, onApprove, onDeny, onEditToggle }) {
   const statusCls = sub.approved === true ? 'sh-card--approved' : sub.approved === false ? 'sh-card--denied' : '';
   const scan = sub.safetyScan || null;
+  const scanUnavailable = Boolean(scan && scan.scanned === false);
   const scanVerdict = !scan
     ? 'No scan data'
-    : scan.allowed === true
+    : scanUnavailable
+      ? 'Gemini unavailable - host review'
+      : scan.allowed === true
       ? 'Gemini pass'
       : 'Gemini flagged';
+  const scanClass = scan && scan.allowed === true && !scanUnavailable
+    ? 'sh-card__scan--pass'
+    : 'sh-card__scan--flagged';
 
   return (
     <div className={`sh-card ${statusCls}`}>
@@ -162,7 +178,7 @@ function SubmissionCard({ sub, title, isEditing, isReviewing, commentDraft, onCo
       <img className="sh-card__img" src={sub.imageData} alt={title} />
 
       {scan && (
-        <div className={`sh-card__scan ${scan.allowed ? 'sh-card__scan--pass' : 'sh-card__scan--flagged'}`}>
+        <div className={`sh-card__scan ${scanClass}`}>
           <p className="sh-card__scan-title">{scanVerdict}</p>
           <p className="sh-card__scan-meta">
             {scan.provider || 'scanner'} {scan.model ? `(${scan.model})` : ''}

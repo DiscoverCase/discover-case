@@ -52,6 +52,7 @@ async function createRoomWithCode(code, { hostSocketId, hostUserId } = {}) {
         hostId: null,
         players: snapshot.players,
         assignmentScores: snapshot.assignmentScores,
+        activeGame: null,
       });
     } catch (err) {
       // If member preload fails, we still create the room; it will populate as users join.
@@ -60,6 +61,7 @@ async function createRoomWithCode(code, { hostSocketId, hostUserId } = {}) {
         hostId: null,
         players: [],
         assignmentScores: {},
+        activeGame: null,
       });
     }
   }
