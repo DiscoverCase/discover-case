@@ -405,3 +405,6 @@ docker run -p 8080:8080 -e DATABASE_URL=<your_db> -e GEMINI_API_KEY=<your_key> d
 ```
 
 ---
+
+## License
+This project is licensed under the [MIT License](LICENSE).
