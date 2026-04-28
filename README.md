@@ -41,6 +41,9 @@ DiscoverCase is a lightweight, real-time game platform designed for CWRU Orienta
 | **External API** | Google Gemini Image Scanner | - |
 | **Deployment** | Docker | - |
 
+## System Design Diagram
+<img width="897" height="811" alt="image (1)" src="https://github.com/user-attachments/assets/187b2a85-e107-41e9-91a6-32f12df89c94" />
+
 ---
 
 ## Installation & Setup
