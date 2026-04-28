@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Dynamic game content switcher for active game type.
+ */
+
 import React from 'react'
 import PlayTrivia from './trivia/PlayTrivia'
 import ScavengerHuntPlayer from './scavenger/ScavengerHuntPlayer'

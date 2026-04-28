@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Player trivia gameplay component driven by socket game state.
+ */
+
 import React from 'react'
 import useTriviaGame from './useTriviaGame'
 import './PlayTrivia.css'

@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Mock-object tests for trivia Socket.IO game event handlers.
+ */
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');

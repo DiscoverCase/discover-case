@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Main API router that composes auth, groups, scavenger, and trivia endpoints.
+ */
+
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
@@ -12,6 +16,11 @@ const scavengerChallenges = require('../data/scavengerChallenges.json');
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const imageScanner = createGeminiImageScanner();
 
+/**
+ * Generates a random six-letter uppercase lobby code.
+ *
+ * @returns {string} Generated code.
+ */
 function generateGroupCode() {
   return Array.from(
     { length: 6 },

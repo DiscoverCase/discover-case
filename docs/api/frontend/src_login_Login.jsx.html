@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: src/login/Login.jsx</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: src/login/Login.jsx</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @fileoverview Login and signup form flow for authenticated entry.
+ */
+
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { createAccount, login as loginApi } from '../api';
+import { useAuth } from '../contexts/AuthContext';
+import './Login.css';
+
+export default function LoginPage() {
+  const navigate = useNavigate();
+  const { login: loginUser, isAuthenticated, authLoaded } = useAuth();
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isHost, setIsHost] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+  const isFormDisabled = loading || !authLoaded;
+
+  useEffect(() => {
+    if (!authLoaded || !isAuthenticated) return;
+    navigate('/join-group', { replace: true });
+  }, [authLoaded, isAuthenticated, navigate]);
+
+  const switchMode = () => {
+    setIsSignUp((prev) => !prev);
+    setError('');
+    setSuccess('');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      if (isSignUp) {
+        await createAccount({
+          username: username.trim(),
+          email: email.trim(),
+          password,
+          role: isHost ? 'host' : 'player',
+        });
+        setSuccess('Account created! You can log in now.');
+        setIsSignUp(false);
+      } else {
+        const data = await loginApi({ username: username.trim(), password });
+        loginUser(data.user);
+        navigate('/join-group', { replace: true });
+      }
+    } catch (err) {
+      setError(err.message || (isSignUp ? 'Sign up failed' : 'Login failed'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    &lt;div className="dashboard-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+      &lt;div className="dashboard-bg" />
+
+      &lt;div className="card login-card" style={{ maxWidth: '420px', width: '90%', padding: '40px' }}>
+        &lt;div className="login-header" style={{ textAlign: 'center', marginBottom: '32px' }}>
+          &lt;h1 style={{ fontSize: '28px', color: 'var(--primary)', marginBottom: '8px' }}>DiscoverCase&lt;/h1>
+          &lt;p style={{ color: 'var(--text-muted)', fontSize: '15px' }}>
+            {isSignUp ? 'Join the community today' : 'Welcome back, please log in'}
+          &lt;/p>
+        &lt;/div>
+
+        &lt;form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {error &amp;&amp; &lt;div className="status-msg error">{error}&lt;/div>}
+          {success &amp;&amp; &lt;div className="status-msg success">{success}&lt;/div>}
+
+          &lt;div className="input-group">
+            &lt;label className="input-label">Username&lt;/label>
+            &lt;input
+              type="text"
+              className="standard-input"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter username"
+              disabled={isFormDisabled}
+              required
+            />
+          &lt;/div>
+
+          {isSignUp &amp;&amp; (
+            &lt;>
+              &lt;div className="input-group">
+                &lt;label className="input-label">Email&lt;/label>
+                &lt;input
+                  type="email"
+                  className="standard-input"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  disabled={isFormDisabled}
+                  required
+                />
+              &lt;/div>
+
+              &lt;div className="input-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                &lt;input
+                  id="role-host"
+                  type="checkbox"
+                  checked={isHost}
+                  onChange={(e) => setIsHost(e.target.checked)}
+                  disabled={isFormDisabled}
+                />
+                &lt;label htmlFor="role-host" style={{ fontSize: '14px', margin: 0 }}>
+                  Create account as host
+                &lt;/label>
+              &lt;/div>
+            &lt;/>
+          )}
+
+          &lt;div className="input-group">
+            &lt;label className="input-label">Password&lt;/label>
+            &lt;input
+              type="password"
+              className="standard-input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              disabled={isFormDisabled}
+              required
+            />
+          &lt;/div>
+
+          &lt;button type="submit" className="primary-btn" disabled={isFormDisabled} style={{ padding: '14px', marginTop: '10px' }}>
+            {loading ? 'Processing...' : isSignUp ? 'Create Account' : 'Sign In'}
+          &lt;/button>
+        &lt;/form>
+
+        &lt;div style={{ textAlign: 'center', marginTop: '24px' }}>
+          &lt;p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
+            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+            &lt;button onClick={switchMode} className="text-link-btn" disabled={isFormDisabled}>
+              {isSignUp ? 'Log in' : 'Sign up'}
+            &lt;/button>
+          &lt;/p>
+        &lt;/div>
+      &lt;/div>
+    &lt;/div>
+  );
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#SocketProvider">SocketProvider</a></li><li><a href="global.html#cancelScavengerSubmission">cancelScavengerSubmission</a></li><li><a href="global.html#createAccount">createAccount</a></li><li><a href="global.html#createRoom">createRoom</a></li><li><a href="global.html#fetchQuestion">fetchQuestion</a></li><li><a href="global.html#getHostGroups">getHostGroups</a></li><li><a href="global.html#getPlayerGroups">getPlayerGroups</a></li><li><a href="global.html#getScavengerChallenges">getScavengerChallenges</a></li><li><a href="global.html#getScavengerState">getScavengerState</a></li><li><a href="global.html#joinGroup">joinGroup</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#parseJson">parseJson</a></li><li><a href="global.html#reviewScavengerSubmission">reviewScavengerSubmission</a></li><li><a href="global.html#setGroupLock">setGroupLock</a></li><li><a href="global.html#setScavengerTeamName">setScavengerTeamName</a></li><li><a href="global.html#submitScavengerPhoto">submitScavengerPhoto</a></li><li><a href="global.html#useSocket">useSocket</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Tue Apr 28 2026 12:31:02 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Socket handlers for trivia game flow and broadcast events.
+ */
+
 const { getRoom } = require('../../rooms');
 const {
   initializeTriviaGame,

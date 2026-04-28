@@ -1,3 +1,7 @@
+/**
+ * @fileoverview In-memory room lifecycle and assignment state orchestrator.
+ */
+
 const { pool } = require('./db')
 const {
   normalizeRoomCode,
@@ -20,6 +24,13 @@ const {
   loadRoomSnapshot,
 } = require('./roomPersistence')
 
+/**
+ * Ensures a room exists for a persisted group code and hydrates member state.
+ *
+ * @param {string} code - Lobby code.
+ * @param {{hostSocketId: (string|null), hostUserId: (string|null)}} [options={}] - Optional host context.
+ * @returns {Promise<object | null>} Room snapshot or null when code is invalid/unresolvable.
+ */
 async function createRoomWithCode(code, { hostSocketId, hostUserId } = {}) {
   const normalized = normalizeRoomCode(code);
   if (!normalized) return null;

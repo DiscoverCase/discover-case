@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Socket.IO React context/provider for authenticated realtime events.
+ */
+
 import { createContext, useContext, useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './contexts/AuthContext';
@@ -5,6 +9,12 @@ import { useAuth } from './contexts/AuthContext';
 const SocketContext = createContext();
 const socketInstance = io({ path: '/socket.io', autoConnect: false });
 
+/**
+ * Provides a shared Socket.IO client and connection metadata.
+ *
+ * @param {{children: any}} props - Provider props.
+ * @returns {any} Socket context provider.
+ */
 export function SocketProvider({ children }) {
   const { user } = useAuth();
   const [connected, setConnected] = useState(socketInstance.connected);
@@ -49,4 +59,9 @@ export function SocketProvider({ children }) {
   )
 }
 
+/**
+ * Reads the shared socket context.
+ *
+ * @returns {{socket: object, connected: boolean, roomCode: (string|null), setRoomCode: Function}}
+ */
 export const useSocket = () => useContext(SocketContext);

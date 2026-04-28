@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Component tests for login screen rendering and auth redirects.
+ */
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
 import Login from '../../src/login/Login';

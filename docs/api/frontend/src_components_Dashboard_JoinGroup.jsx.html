@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: src/components/Dashboard/JoinGroup.jsx</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: src/components/Dashboard/JoinGroup.jsx</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @fileoverview Lobby join screen for players and hosts with code-based entry.
+ */
+
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { joinGroup, getHostGroups, getPlayerGroups } from '../../api';
+import { useSocket } from '../../useSocket';
+import './dashboard.css';
+
+export default function JoinGroup() {
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [checkingRedirect, setCheckingRedirect] = useState(true);
+
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isAuthenticated, authLoaded } = useAuth();
+  const { socket, connected } = useSocket();
+
+  useEffect(() => {
+    const message = location.state?.message;
+    if (message) {
+      setError(message);
+    }
+  }, [location.state]);
+
+  useEffect(() => {
+    if (!authLoaded) return;
+
+    if (!isAuthenticated) {
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    let canceled = false;
+
+    const loadJoinedGroup = async () => {
+      setCheckingRedirect(true);
+      try {
+        // If the user intentionally left a room, skip one auto-redirect cycle.
+        const justLeftRoom = localStorage.getItem('just_left_room') === '1';
+        if (justLeftRoom) {
+          localStorage.removeItem('just_left_room');
+          return;
+        }
+
+        // If the user is a host, check if they have any groups before showing the join screen.
+        if (user?.role === 'host' &amp;&amp; user?.id) {
+          const hostRes = await getHostGroups(user.id);
+          const hostGroups = hostRes?.groups || [];
+          if (!canceled &amp;&amp; hostGroups.length) {
+            const hostCode = hostGroups[0]?.code;
+            if (hostCode) {
+              try {
+                localStorage.setItem('host_room_code', hostCode);
+              } catch {
+                // ignore storage issues
+              }
+            }
+            navigate('/dashboard', { replace: true });
+            return;
+          }
+        }
+
+        const savedCode = (localStorage.getItem('joined_group_code') || '').trim().toUpperCase();
+
+        // If we have no stored room, try to load the first group from the server.
+        if (user?.id) {
+          const res = await getPlayerGroups(user.id);
+          const groups = res?.groups || [];
+
+          const playerCodes = groups
+            .map((g) => (g?.code || '').trim().toUpperCase())
+            .filter(Boolean);
+
+          let redirectCode = null;
+          if (savedCode &amp;&amp; playerCodes.includes(savedCode)) {
+            redirectCode = savedCode;
+          } else if (playerCodes.length) {
+            redirectCode = playerCodes[0];
+          }
+
+          if (!canceled &amp;&amp; redirectCode) {
+            localStorage.setItem('joined_group_code', redirectCode);
+            navigate('/waiting-room', {
+              replace: true,
+              state: { groupCode: redirectCode, member: { id: user.id, username: user.username } },
+            });
+            return;
+          }
+
+          if (!redirectCode &amp;&amp; savedCode) {
+            localStorage.removeItem('joined_group_code');
+          }
+        } else if (savedCode &amp;&amp; !canceled) {
+          navigate('/waiting-room', {
+            replace: true,
+            state: { groupCode: savedCode, member: { id: user?.id, username: user?.username } },
+          });
+          return;
+        }
+      } catch (err) {
+        // Fall back to saved local group code if available.
+        const savedCode = (localStorage.getItem('joined_group_code') || '').trim().toUpperCase();
+        if (!canceled &amp;&amp; savedCode) {
+          navigate('/waiting-room', {
+            replace: true,
+            state: { groupCode: savedCode, member: { id: user?.id, username: user?.username } },
+          });
+          return;
+        }
+      } finally {
+        if (!canceled) setCheckingRedirect(false);
+      }
+    };
+
+    loadJoinedGroup();
+
+    return () => {
+      canceled = true;
+    };
+  }, [authLoaded, isAuthenticated, navigate, user?.id, user?.role, user?.username]);
+
+  const handleJoin = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    const trimmed = (code || '').trim().toUpperCase();
+    if (!trimmed) {
+      setError('Enter a valid group code.');
+      return;
+    }
+
+    if (!user?.id) {
+      setError('You must be logged in to join a group.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await joinGroup({ groupCode: trimmed, userId: user.id });
+
+      if (connected) {
+        socket.emit('join_room', { roomCode: trimmed, username: result?.member?.username || user.username || 'Player' });
+      }
+
+      if(user?.role === 'host') {
+        localStorage.setItem('host_room_code', trimmed);
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+
+      localStorage.setItem('joined_group_code', trimmed);
+
+      navigate('/waiting-room', {
+        replace: true,
+        state: { groupCode: trimmed, group: result.group, member: result.member },
+      });
+      return;
+    } catch (err) {
+      setError(err.message || 'Unable to join group');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    &lt;div className="dashboard-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+      &lt;div className="dashboard-bg" />
+      
+      &lt;div className="card join-card" style={{ maxWidth: '400px', width: '90%', textAlign: 'center', padding: '40px' }}>
+        &lt;div className="join-header" style={{ marginBottom: '32px' }}>
+          &lt;div className="logo-placeholder" style={{ fontSize: '32px', marginBottom: '12px' }}>🏫&lt;/div>
+          &lt;h1 style={{ fontSize: '24px', margin: '0 0 8px 0', color: 'var(--text-main)' }}>Welcome, Spartan!&lt;/h1>
+          &lt;p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
+            Enter your group code to join the orientation session.
+          &lt;/p>
+        &lt;/div>
+
+        &lt;form onSubmit={handleJoin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {error &amp;&amp; (
+            &lt;div className="status-msg error" style={{ textAlign: 'left' }}>
+              {error}
+            &lt;/div>
+          )}
+
+          &lt;div className="code-input-wrapper">
+            &lt;input
+              type="text"
+              placeholder="Room Code Here"
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              maxLength={9}
+              style={{
+                width: '100%',
+                padding: '16px',
+                fontSize: '20px',
+                fontWeight: '800',
+                textAlign: 'center',
+                letterSpacing: '0.1em',
+                borderRadius: '12px',
+                border: '2px solid #e2e8f0',
+                background: '#f8fafc',
+                color: 'var(--primary)',
+                textTransform: 'uppercase'
+              }}
+            />
+          &lt;/div>
+
+          &lt;button 
+            type="submit" 
+            className="primary-btn" 
+            style={{ padding: '16px', fontSize: '16px', width: '100%' }}
+            disabled={!code || loading}
+          >
+            {loading ? 'Joining…' : 'Enter Lobby'}
+          &lt;/button>
+        &lt;/form>
+
+        &lt;div className="join-footer" style={{ marginTop: '24px' }}>
+          &lt;p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            Need help? Ask your orientation leader for the code displayed on the main screen.
+          &lt;/p>
+        &lt;/div>
+      &lt;/div>
+    &lt;/div>
+  );
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#SocketProvider">SocketProvider</a></li><li><a href="global.html#cancelScavengerSubmission">cancelScavengerSubmission</a></li><li><a href="global.html#createAccount">createAccount</a></li><li><a href="global.html#createRoom">createRoom</a></li><li><a href="global.html#fetchQuestion">fetchQuestion</a></li><li><a href="global.html#getHostGroups">getHostGroups</a></li><li><a href="global.html#getPlayerGroups">getPlayerGroups</a></li><li><a href="global.html#getScavengerChallenges">getScavengerChallenges</a></li><li><a href="global.html#getScavengerState">getScavengerState</a></li><li><a href="global.html#joinGroup">joinGroup</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#parseJson">parseJson</a></li><li><a href="global.html#reviewScavengerSubmission">reviewScavengerSubmission</a></li><li><a href="global.html#setGroupLock">setGroupLock</a></li><li><a href="global.html#setScavengerTeamName">setScavengerTeamName</a></li><li><a href="global.html#submitScavengerPhoto">submitScavengerPhoto</a></li><li><a href="global.html#useSocket">useSocket</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Tue Apr 28 2026 12:31:02 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

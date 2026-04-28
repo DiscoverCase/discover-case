@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Backend entrypoint that wires Express routes and Socket.IO.
+ */
+
 require('dotenv').config();
 const express = require('express');
 const { createServer } = require('http');

@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Unit tests for auth route validation and login/signup behavior.
+ */
+
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const express = require('express')
@@ -5,6 +9,12 @@ const { createServer } = require('http')
 
 const { createAuthRouter } = require('../../src/routes/auth')
 
+/**
+ * Builds an isolated auth test server with mocked dependencies.
+ *
+ * @param {{poolQueryImpl: Function, bcryptImpl: {hash: Function, compare: Function}}} deps - Injectable doubles.
+ * @returns {object} Test server instance.
+ */
 function createTestServer({ poolQueryImpl, bcryptImpl }) {
   const app = express()
   app.use(express.json())

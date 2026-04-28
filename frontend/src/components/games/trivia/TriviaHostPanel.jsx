@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Host controls for running trivia rounds and revealing answers.
+ */
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { fetchQuestion } from '../../../api';
 import './TriviaHostPanel.css';

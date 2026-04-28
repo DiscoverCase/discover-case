@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Shared top navigation component for authenticated app pages.
+ */
+
 import './Navbar.css'
 import React from 'react';
 import { NavLink } from 'react-router-dom';

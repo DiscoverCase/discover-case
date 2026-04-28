@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: src/components/games/trivia/useTriviaGame.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: src/components/games/trivia/useTriviaGame.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @fileoverview Reusable trivia game hook for player answer flow and timing.
+ */
+
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSocket } from '../../../useSocket'
+import { fetchQuestion } from '../../../api'
+
+export default function useTriviaGame({ username: initialUsername } = {}) {
+  const { socket, roomCode, connected } = useSocket()
+  const username = useMemo(() => {
+    return (
+      initialUsername ||
+      localStorage.getItem('dc_username') ||
+      'Player'
+    )
+  }, [initialUsername])
+
+  const [status, setStatus] = useState('Game started! Waiting for first question…')
+  const [question, setQuestion] = useState(null)
+  const [selected, setSelected] = useState(null)
+  const [answerRevealed, setAnswerRevealed] = useState(false)
+  const [revealAnswer, setRevealAnswer] = useState(null)
+  const [score, setScore] = useState(0)
+  const [isPopping, setIsPopping] = useState(false)
+  const [playerCount, setPlayerCount] = useState(0)
+  const [timeLeft, setTimeLeft] = useState(30)
+
+  const correctNumberAnswered = useRef(0)
+
+  useEffect(() => {
+    localStorage.setItem('dc_username', username)
+  }, [username])
+
+  useEffect(() => {
+    correctNumberAnswered.current = selected !== null ? correctNumberAnswered.current : 0
+  }, [selected, playerCount])
+
+  useEffect(() => {
+    if (!socket) return
+
+    const handleNewQuestion = (payload) => {
+      setQuestion(payload)
+      setSelected(null)
+      setAnswerRevealed(false)
+      setRevealAnswer(null)
+      setTimeLeft(payload.timeLimit ?? 30)
+      setStatus('')
+    }
+
+    const handleTriviaFeedback = ({ message }) => {
+      setStatus(message || '')
+    }
+
+    const handleAnswerRevealed = ({ correctAnswer, playerResults }) => {
+      setAnswerRevealed(true)
+      setRevealAnswer(correctAnswer)
+
+      const self = playerResults?.[socket.id]
+      if (self) {
+        setScore(self.totalScore)
+        if (self.correct) {
+          setIsPopping(true)
+          setTimeout(() => setIsPopping(false), 1000)
+        }
+      }
+    }
+
+    const handlePlayerAnswered = () => {
+      setPlayerCount((prev) => prev)
+      setSelected((prevSelected) => prevSelected)
+    }
+
+    socket.on('new_question', handleNewQuestion)
+    socket.on('trivia_feedback', handleTriviaFeedback)
+    socket.on('answer_revealed', handleAnswerRevealed)
+    socket.on('player_answered', handlePlayerAnswered)
+
+    return () => {
+      socket.off('new_question', handleNewQuestion)
+      socket.off('trivia_feedback', handleTriviaFeedback)
+      socket.off('answer_revealed', handleAnswerRevealed)
+      socket.off('player_answered', handlePlayerAnswered)
+    }
+  }, [socket])
+
+  useEffect(() => {
+    if (!question || answerRevealed) return
+    if (timeLeft &lt;= 0) return
+    const timerId = setTimeout(() => {
+      setTimeLeft((t) => t - 1)
+    }, 1000)
+    return () => clearTimeout(timerId)
+  }, [timeLeft, question, answerRevealed])
+
+  const gameIsPlaying = () => {
+    return !!question
+  }
+
+  const startGame = async () => {
+    if (!socket || !connected || !roomCode) return
+
+    setTimeLeft(30)
+    setSelected(null)
+    setAnswerRevealed(false)
+
+    socket.emit('get_player_count', { roomCode }, (response) => {
+      setPlayerCount(response.count)
+    })
+
+    const data = await fetchQuestion()
+    setQuestion(data)
+
+    socket.emit('broadcast_question', {
+      roomCode,
+      question: data.question,
+      options: data.options,
+    })
+
+    socket.emit('host_started', { roomCode, gameType: 'trivia' })
+  }
+
+  const submitAnswer = (optionIndex) => {
+    if (!socket || !connected || !question) return
+    setSelected(optionIndex)
+
+    socket.emit('player_trivia_answer', {
+      roomCode,
+      username,
+      answerIndex: optionIndex,
+      qid: question.qid,
+    })
+  }
+
+  const nextQuestion = async () => {
+    if (!socket || !connected || !question) return
+    setTimeLeft(30)
+    setSelected(null)
+
+    const data = await fetchQuestion(question.seen)
+    setQuestion(data)
+
+    socket.emit('broadcast_question', {
+      roomCode,
+      question: data.question,
+      options: data.options,
+    })
+  }
+
+  return {
+    username,
+    status,
+    question,
+    selected,
+    answerRevealed,
+    revealAnswer,
+    score,
+    isPopping,
+    timeLeft,
+    playerCount,
+    connected,
+    setTimeLeft,
+    startGame,
+    submitAnswer,
+    nextQuestion,
+    gameIsPlaying,
+  }
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#SocketProvider">SocketProvider</a></li><li><a href="global.html#cancelScavengerSubmission">cancelScavengerSubmission</a></li><li><a href="global.html#createAccount">createAccount</a></li><li><a href="global.html#createRoom">createRoom</a></li><li><a href="global.html#fetchQuestion">fetchQuestion</a></li><li><a href="global.html#getHostGroups">getHostGroups</a></li><li><a href="global.html#getPlayerGroups">getPlayerGroups</a></li><li><a href="global.html#getScavengerChallenges">getScavengerChallenges</a></li><li><a href="global.html#getScavengerState">getScavengerState</a></li><li><a href="global.html#joinGroup">joinGroup</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#parseJson">parseJson</a></li><li><a href="global.html#reviewScavengerSubmission">reviewScavengerSubmission</a></li><li><a href="global.html#setGroupLock">setGroupLock</a></li><li><a href="global.html#setScavengerTeamName">setScavengerTeamName</a></li><li><a href="global.html#submitScavengerPhoto">submitScavengerPhoto</a></li><li><a href="global.html#useSocket">useSocket</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Tue Apr 28 2026 12:31:02 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

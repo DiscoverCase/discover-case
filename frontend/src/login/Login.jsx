@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Login and signup form flow for authenticated entry.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createAccount, login as loginApi } from '../api';

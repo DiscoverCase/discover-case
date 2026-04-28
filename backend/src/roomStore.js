@@ -1,4 +1,8 @@
-/** @type {Map<string, { hostId: string | null, players: Array<any>, assignmentScores?: Record<string, number> }>} */
+/**
+ * @fileoverview Low-level in-memory room map utilities and normalization helpers.
+ */
+
+/** @type {Map<string, { hostId: (string|null), players: Array<any>, assignmentScores: Object.<string, number> }>} */
 const rooms = new Map();
 
 function normalizeRoomCode(code) {

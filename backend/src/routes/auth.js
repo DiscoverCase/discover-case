@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Authentication routes for account creation and login.
+ */
+
 const express = require('express')
 
 /**

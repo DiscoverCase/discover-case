@@ -1,5 +1,15 @@
+/**
+ * @fileoverview Frontend API client wrappers for backend REST endpoints.
+ */
+
 const API_BASE = ''
 
+/**
+ * Safely parses JSON from an HTTP response body.
+ *
+ * @param {Response} res - Fetch response object.
+ * @returns {Promise<object | null>} Parsed payload or null for empty/invalid JSON.
+ */
 async function parseJson(res) {
   const text = await res.text()
   if (!text || text.trim() === '') return null
@@ -10,6 +20,12 @@ async function parseJson(res) {
   }
 }
 
+/**
+ * Creates a host room.
+ *
+ * @param {{userId: string}} params - Room creation payload.
+ * @returns {Promise<object>} API response payload.
+ */
 export async function createRoom({ userId }) {
   let res
   try {
@@ -27,6 +43,12 @@ export async function createRoom({ userId }) {
   return data
 }
 
+/**
+ * Fetches groups owned by a host user.
+ *
+ * @param {string} userId - Host user id.
+ * @returns {Promise<object>} Groups response payload.
+ */
 export async function getHostGroups(userId) {
   let res
   try {
@@ -43,6 +65,12 @@ export async function getHostGroups(userId) {
   return data
 }
 
+/**
+ * Toggles lobby lock state for a host-owned group.
+ *
+ * @param {{groupCode: string, userId: string, isLocked: boolean}} params - Lock update payload.
+ * @returns {Promise<object>} Updated group payload.
+ */
 export async function setGroupLock({ groupCode, userId, isLocked }) {
   let res
   try {
@@ -60,6 +88,12 @@ export async function setGroupLock({ groupCode, userId, isLocked }) {
   return data
 }
 
+/**
+ * Joins a lobby by code for the current user.
+ *
+ * @param {{groupCode: string, userId: string}} params - Join request payload.
+ * @returns {Promise<object>} Join response with group/member metadata.
+ */
 export async function joinGroup({ groupCode, userId }) {
   let res
   try {
@@ -76,6 +110,12 @@ export async function joinGroup({ groupCode, userId }) {
   return data
 }
 
+/**
+ * Fetches groups that the player belongs to.
+ *
+ * @param {string} userId - Player user id.
+ * @returns {Promise<object>} Groups response payload.
+ */
 export async function getPlayerGroups(userId) {
   let res
   try {
@@ -92,6 +132,12 @@ export async function getPlayerGroups(userId) {
   return data
 }
 
+/**
+ * Creates a user account.
+ *
+ * @param {{username: string, email: string, password: string, role: (string|undefined)}} params - Registration payload.
+ * @returns {Promise<object>} Created user payload.
+ */
 export async function createAccount({ username, email, password, role }) {
   let res
   try {
@@ -108,6 +154,12 @@ export async function createAccount({ username, email, password, role }) {
   return data
 }
 
+/**
+ * Logs in a user.
+ *
+ * @param {{username: string, password: string}} params - Login credentials.
+ * @returns {Promise<object>} Auth response payload.
+ */
 export async function login({ username, password }) {
   let res
   try {
@@ -125,6 +177,12 @@ export async function login({ username, password }) {
 }
 
 
+/**
+ * Fetches a random trivia question not in the seen list.
+ *
+ * @param {number[]} [seen=[]] - Question ids that were already shown.
+ * @returns {Promise<object>} Trivia question payload.
+ */
   export async function fetchQuestion(seen = []) {
     let res
     try {
@@ -141,6 +199,11 @@ export async function login({ username, password }) {
     return data
   }
 
+/**
+ * Fetches scavenger challenge catalog.
+ *
+ * @returns {Promise<object>} Challenge categories and items.
+ */
 export async function getScavengerChallenges() {
   let res
   try {
@@ -156,6 +219,11 @@ export async function getScavengerChallenges() {
   return data
 }
 
+/**
+ * Fetches scavenger state for the currently joined group.
+ *
+ * @returns {Promise<object>} Group scavenger progress snapshot.
+ */
 export async function getScavengerState() {
   let res
   const groupCode = localStorage.getItem('joined_group_code')
@@ -173,6 +241,12 @@ export async function getScavengerState() {
   return data
 }
 
+/**
+ * Sets scavenger team name for current group.
+ *
+ * @param {string} teamName - Team display name.
+ * @returns {Promise<object>} Updated team metadata.
+ */
 export async function setScavengerTeamName(teamName) {
   let res
   const groupCode = localStorage.getItem('joined_group_code')
@@ -191,6 +265,12 @@ export async function setScavengerTeamName(teamName) {
   return data
 }
 
+/**
+ * Submits a scavenger photo evidence item.
+ *
+ * @param {{challengeId: string, imageData: string, playerName: (string|undefined)}} params - Submission payload.
+ * @returns {Promise<object>} Submission result.
+ */
 export async function submitScavengerPhoto({ challengeId, imageData, playerName }) {
   let res
   const groupCode = localStorage.getItem('joined_group_code')
@@ -209,6 +289,12 @@ export async function submitScavengerPhoto({ challengeId, imageData, playerName 
   return data
 }
 
+/**
+ * Reviews a pending scavenger submission as host.
+ *
+ * @param {{submissionId: string, approved: boolean, comment: (string|undefined)}} params - Review payload.
+ * @returns {Promise<object>} Updated submission and state.
+ */
 export async function reviewScavengerSubmission({ submissionId, approved, comment }) {
   let res
   const groupCode = localStorage.getItem('joined_group_code')
@@ -227,6 +313,12 @@ export async function reviewScavengerSubmission({ submissionId, approved, commen
   return data
 }
 
+/**
+ * Cancels a pending scavenger submission.
+ *
+ * @param {{submissionId: string}} params - Cancellation payload.
+ * @returns {Promise<object>} Updated scavenger state.
+ */
 export async function cancelScavengerSubmission({ submissionId }) {
   let res
   const groupCode = localStorage.getItem('joined_group_code')

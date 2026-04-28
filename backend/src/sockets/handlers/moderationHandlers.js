@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Socket handlers for moderation actions like kicking and banning.
+ */
+
 const { getRoom, removePlayerPermanently, getPlayers } = require('../../rooms');
 const { pool } = require('../../db');
 

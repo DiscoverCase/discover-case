@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Host-side game launcher and in-room game management panel.
+ */
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';

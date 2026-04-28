@@ -1,3 +1,7 @@
+/**
+ * @fileoverview PostgreSQL pool and boot-time schema initialization.
+ */
+
 const { Pool } = require('pg');
 
 const pool = new Pool({
@@ -12,6 +16,11 @@ const pool = new Pool({
     : false,
 });
 
+/**
+ * Creates required tables/indexes and applies lightweight schema backfills.
+ *
+ * @returns {Promise<void>}
+ */
 const createUserTable = async () => {
   const queryText = `
     CREATE TABLE IF NOT EXISTS users (

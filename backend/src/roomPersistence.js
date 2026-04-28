@@ -1,5 +1,16 @@
+/**
+ * @fileoverview Database helpers for rebuilding in-memory room snapshots.
+ */
+
 const { normalizeAssignedGroup } = require('./roomAssignments');
 
+/**
+ * Resolves a persisted lobby by its room code.
+ *
+ * @param {{query: Function}} pool - PG pool-like dependency.
+ * @param {string} code - Room code.
+ * @returns {Promise<{groupId: string, createdBy: string} | null>} Group metadata when found.
+ */
 async function resolveGroupByCode(pool, code) {
   const res = await pool.query(
     'SELECT id, created_by FROM groups WHERE code = $1',
@@ -14,6 +25,13 @@ async function resolveGroupByCode(pool, code) {
   };
 }
 
+/**
+ * Loads room membership and assignment scores for hydration at startup/join.
+ *
+ * @param {{query: Function}} pool - PG pool-like dependency.
+ * @param {string} groupId - Group UUID.
+ * @returns {Promise<{players: Array<object>, assignmentScores: Record<string, number>}>} Snapshot used by room store.
+ */
 async function loadRoomSnapshot(pool, groupId) {
   const players = [];
   /** @type {Record<string, string | null>} */

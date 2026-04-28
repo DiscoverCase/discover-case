@@ -8,9 +8,15 @@
     "dev:backend": "npm run dev --prefix backend",
     "dev:frontend": "npm run dev --prefix frontend",
     "build": "npm run build --prefix frontend",
-    "start": "npm run start --prefix backend"
+    "start": "npm run start --prefix backend",
+    "docs:backend": "jsdoc -c backend/jsdoc.json",
+    "docs:frontend": "jsdoc -c frontend/jsdoc.json",
+    "docs:generate": "npm run docs:backend && npm run docs:frontend"
   },
   "dependencies": {
     "lucide-react": "^0.563.0"
+  },
+  "devDependencies": {
+    "jsdoc": "^4.0.4"
   }
 }

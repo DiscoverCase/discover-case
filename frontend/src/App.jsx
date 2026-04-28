@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Frontend route composition and top-level application shell.
+ */
+
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import './App.css'

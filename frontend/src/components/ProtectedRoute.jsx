@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Route guard component enforcing auth and optional role checks.
+ */
+
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 

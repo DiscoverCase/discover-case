@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Waiting room view for lobby members before game start.
+ */
+
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSocket } from '../../useSocket';

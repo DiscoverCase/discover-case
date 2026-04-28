@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Component tests for join-group flows with mocked API and sockets.
+ */
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent, waitFor } from '@testing-library/react';
 import JoinGroup from '../../src/components/Dashboard/JoinGroup';

@@ -1,0 +1,11 @@
+{
+  "source": {
+    "include": ["frontend/src", "frontend/tests"],
+    "includePattern": ".+\\.(js|jsx)$",
+    "excludePattern": "(node_modules|docs)"
+  },
+  "opts": {
+    "destination": "docs/api/frontend",
+    "recurse": true
+  }
+}

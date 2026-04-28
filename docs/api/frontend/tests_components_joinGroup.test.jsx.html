@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: tests/components/joinGroup.test.jsx</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: tests/components/joinGroup.test.jsx</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @fileoverview Component tests for join-group flows with mocked API and sockets.
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, fireEvent, waitFor } from '@testing-library/react';
+import JoinGroup from '../../src/components/Dashboard/JoinGroup';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { useSocket } from '../../src/useSocket';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { joinGroup, getHostGroups, getPlayerGroups } from '../../src/api';
+
+vi.mock('../../src/contexts/AuthContext');
+vi.mock('../../src/useSocket');
+vi.mock('../../src/api', () => ({
+  joinGroup: vi.fn(),
+  getHostGroups: vi.fn(),
+  getPlayerGroups: vi.fn(),
+}));
+vi.mock('react-router-dom', () => ({
+  useNavigate: vi.fn(),
+  useLocation: vi.fn(),
+}));
+
+describe('JoinGroup', () => {
+  let mockNavigateFn;
+  let mockSocket;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+
+    mockNavigateFn = vi.fn();
+    mockSocket = {
+      emit: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+    };
+
+    vi.mocked(useNavigate).mockReturnValue(mockNavigateFn);
+    vi.mocked(useLocation).mockReturnValue({ state: null });
+
+    vi.mocked(useAuth).mockReturnValue({
+      user: { id: 'u1', username: 'test', role: 'player' },
+      isAuthenticated: true,
+      authLoaded: true,
+    });
+
+    vi.mocked(useSocket).mockReturnValue({
+      socket: mockSocket,
+      connected: true,
+    });
+
+    vi.mocked(getHostGroups).mockResolvedValue({ groups: [] });
+    vi.mocked(getPlayerGroups).mockResolvedValue({ groups: [] });
+  });
+
+  it('Redirects unauthenticated users to login', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: null,
+      isAuthenticated: false,
+      authLoaded: true,
+    });
+
+    render(&lt;JoinGroup />);
+
+    await waitFor(() => {
+      expect(mockNavigateFn).toHaveBeenCalledWith('/login', { replace: true });
+    });
+  });
+
+  it('Renders states message (kick, ban) when provided', async () => {
+    vi.mocked(useLocation).mockReturnValue({
+      state: { message: 'You were removed from the room.' },
+    });
+
+    const { getByText } = render(&lt;JoinGroup />);
+
+    await waitFor(() => {
+      expect(getPlayerGroups).toHaveBeenCalled();
+    });
+
+    expect(getByText('You were removed from the room.')).toBeTruthy();
+  });
+
+  it('Shows validation error for blank group code', async () => {
+    const { getByPlaceholderText, getByRole, getByText } = render(&lt;JoinGroup />);
+
+    fireEvent.change(getByPlaceholderText('Room Code Here'), {
+      target: { value: '   ' },
+    });
+
+    fireEvent.click(getByRole('button', { name: 'Enter Lobby' }));
+
+    await waitFor(() => {
+      expect(getByText('Enter a valid group code.')).toBeTruthy();
+    });
+
+    expect(joinGroup).not.toHaveBeenCalled();
+  });
+
+  it('Joins as player and navigates to waiting room with uppercase code', async () => {
+    const result = {
+      group: { code: 'ABC123' },
+      member: { id: 'u1', username: 'test' },
+    };
+    vi.mocked(joinGroup).mockResolvedValue(result);
+
+    const { getByPlaceholderText, getByRole } = render(&lt;JoinGroup />);
+
+    fireEvent.change(getByPlaceholderText('Room Code Here'), {
+      target: { value: 'abc123' },
+    });
+
+    fireEvent.click(getByRole('button', { name: 'Enter Lobby' }));
+
+    await waitFor(() => {
+      expect(joinGroup).toHaveBeenCalledWith({ groupCode: 'ABC123', userId: 'u1' });
+    });
+
+    expect(mockSocket.emit).toHaveBeenCalledWith('join_room', {
+      roomCode: 'ABC123',
+      username: 'test',
+    });
+
+    expect(mockNavigateFn).toHaveBeenCalledWith('/waiting-room', {
+      replace: true,
+      state: {
+        groupCode: 'ABC123',
+        group: result.group,
+        member: result.member,
+      },
+    });
+  });
+
+  it('Navigates host users to dashboard after joining', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { id: 'host-1', username: 'host', role: 'host' },
+      isAuthenticated: true,
+      authLoaded: true,
+    });
+
+    vi.mocked(joinGroup).mockResolvedValue({
+      group: { code: 'HOST01' },
+      member: { id: 'host-1', username: 'host' },
+    });
+
+    const { getByPlaceholderText, getByRole } = render(&lt;JoinGroup />);
+
+    fireEvent.change(getByPlaceholderText('Room Code Here'), {
+      target: { value: 'host01' },
+    });
+
+    fireEvent.click(getByRole('button', { name: 'Enter Lobby' }));
+
+    await waitFor(() => {
+      expect(mockNavigateFn).toHaveBeenCalledWith('/dashboard', { replace: true });
+    });
+  });
+
+  it('Does not emit join_room when socket is disconnected', async () => {
+    vi.mocked(useSocket).mockReturnValue({
+      socket: mockSocket,
+      connected: false,
+    });
+
+    vi.mocked(joinGroup).mockResolvedValue({
+      group: { code: 'ABCD12' },
+      member: { id: 'u1', username: 'test' },
+    });
+
+    const { getByPlaceholderText, getByRole } = render(&lt;JoinGroup />);
+
+    fireEvent.change(getByPlaceholderText('Room Code Here'), {
+      target: { value: 'abcd12' },
+    });
+
+    fireEvent.click(getByRole('button', { name: 'Enter Lobby' }));
+
+    await waitFor(() => {
+      expect(joinGroup).toHaveBeenCalled();
+    });
+
+    expect(mockSocket.emit).not.toHaveBeenCalledWith('join_room', expect.anything());
+  });
+});
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#SocketProvider">SocketProvider</a></li><li><a href="global.html#cancelScavengerSubmission">cancelScavengerSubmission</a></li><li><a href="global.html#createAccount">createAccount</a></li><li><a href="global.html#createRoom">createRoom</a></li><li><a href="global.html#fetchQuestion">fetchQuestion</a></li><li><a href="global.html#getHostGroups">getHostGroups</a></li><li><a href="global.html#getPlayerGroups">getPlayerGroups</a></li><li><a href="global.html#getScavengerChallenges">getScavengerChallenges</a></li><li><a href="global.html#getScavengerState">getScavengerState</a></li><li><a href="global.html#joinGroup">joinGroup</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#parseJson">parseJson</a></li><li><a href="global.html#reviewScavengerSubmission">reviewScavengerSubmission</a></li><li><a href="global.html#setGroupLock">setGroupLock</a></li><li><a href="global.html#setScavengerTeamName">setScavengerTeamName</a></li><li><a href="global.html#submitScavengerPhoto">submitScavengerPhoto</a></li><li><a href="global.html#useSocket">useSocket</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Tue Apr 28 2026 12:31:02 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

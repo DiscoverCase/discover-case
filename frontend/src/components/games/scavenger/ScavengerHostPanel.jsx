@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Host review panel for scavenger submissions and scoring.
+ */
+
 import React, { useEffect, useState } from 'react';
 import {
   getScavengerChallenges,

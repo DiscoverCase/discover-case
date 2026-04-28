@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Socket handlers for room lifecycle, membership, and host controls.
+ */
+
 const {
   createRoomWithCode,
   getRoom,

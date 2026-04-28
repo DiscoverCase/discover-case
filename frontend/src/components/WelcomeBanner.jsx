@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Welcome banner with user context and quick navigation actions.
+ */
+
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import './WelcomeBanner.css'

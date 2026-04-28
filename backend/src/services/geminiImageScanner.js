@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Gemini image-scanning adapter for scavenger submission safety checks.
+ */
+
 const DEFAULT_MODEL = process.env.GEMINI_SCAN_MODEL || 'gemini-2.5-flash';
 const DEFAULT_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 

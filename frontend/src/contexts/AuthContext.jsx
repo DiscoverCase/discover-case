@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Authentication context for user session and localStorage persistence.
+ */
+
 import { createContext, useContext, useState, useEffect } from 'react'
 
 const AuthContext = createContext(null)

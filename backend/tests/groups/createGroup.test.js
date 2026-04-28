@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Unit tests for host room creation route and collision retries.
+ */
+
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const express = require('express')
@@ -5,6 +9,12 @@ const { createServer } = require('http')
 
 const { createGroupsRouter } = require('../../src/routes/groups')
 
+/**
+ * Builds an isolated groups test server with mocked persistence.
+ *
+ * @param {{poolQueryImpl: Function, generateGroupCode: Function}} deps - Injectable doubles.
+ * @returns {object} Test server instance.
+ */
 function createTestServer({ poolQueryImpl, generateGroupCode }) {
   const app = express()
   app.use(express.json())

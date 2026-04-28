@@ -1,3 +1,7 @@
+/**
+ * @fileoverview In-memory trivia game state helpers and scoring operations.
+ */
+
 const triviaGames = new Map();
 
 function initializeTriviaGame(roomCode) {

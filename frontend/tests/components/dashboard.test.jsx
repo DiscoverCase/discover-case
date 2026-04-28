@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Component tests for host dashboard behavior and room controls.
+ */
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import Dashboard from '../../src/components/Dashboard/dashboard';

@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Player scavenger hunt UI for challenge progress and photo submissions.
+ */
+
 import React, { useEffect, useState } from "react";
 import "./ScavengerHuntPlayer.css";
 import {

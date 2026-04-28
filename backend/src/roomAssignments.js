@@ -1,8 +1,24 @@
+/**
+ * @fileoverview Room assignment utilities used by socket room state.
+ */
+
+/**
+ * Normalizes an assignment/team name to a canonical string.
+ *
+ * @param {unknown} assignedGroup - Raw assignment value.
+ * @returns {string | null} Trimmed group name, or null when invalid.
+ */
 function normalizeAssignedGroup(assignedGroup) {
   const value = typeof assignedGroup === 'string' ? assignedGroup.trim() : '';
   return value || null;
 }
 
+/**
+ * Builds a group-to-playerId index from room players.
+ *
+ * @param {Array<{id: string, assignedGroup: (string|null)}>} [players=[]] - Players in a room.
+ * @returns {Record<string, string[]>} Assignment map keyed by group name.
+ */
 function buildRoomAssignments(players = []) {
   /** @type {Record<string, string[]>} */
   const assignments = {};
@@ -17,6 +33,14 @@ function buildRoomAssignments(players = []) {
   return assignments;
 }
 
+/**
+ * Assigns a single player to a group and initializes that group's score.
+ *
+ * @param {object} room - Mutable room object.
+ * @param {string} playerId - Player id to update.
+ * @param {unknown} assignedGroup - Target group name.
+ * @returns {object | null} Updated player object, or null when room/player is missing.
+ */
 function assignPlayerGroupInRoom(room, playerId, assignedGroup) {
   if (!room) return null;
   const player = room.players.find((entry) => entry.id === playerId);
@@ -35,6 +59,12 @@ function assignPlayerGroupInRoom(room, playerId, assignedGroup) {
   return player;
 }
 
+/**
+ * Clears all player assignment labels in a room.
+ *
+ * @param {object} room - Mutable room object.
+ * @returns {Array<object> | null} Updated room players, or null when room is missing.
+ */
 function clearAssignmentsInRoom(room) {
   if (!room) return null;
 
@@ -45,6 +75,14 @@ function clearAssignmentsInRoom(room) {
   return room.players;
 }
 
+/**
+ * Sets an integer score for a named assignment group.
+ *
+ * @param {object} room - Mutable room object.
+ * @param {unknown} assignmentName - Assignment group label.
+ * @param {unknown} score - Numeric score value.
+ * @returns {number | null} Stored score, or null when inputs are invalid.
+ */
 function setAssignmentScoreInRoom(room, assignmentName, score) {
   if (!room) return null;
 
@@ -59,11 +97,24 @@ function setAssignmentScoreInRoom(room, assignmentName, score) {
   return room.assignmentScores[normalizedName];
 }
 
+/**
+ * Reads assignment scores from a room snapshot.
+ *
+ * @param {object} room - Room object.
+ * @returns {Record<string, number>} Copy of score map.
+ */
 function getAssignmentScoresFromRoom(room) {
   if (!room || !room.assignmentScores) return {};
   return { ...room.assignmentScores };
 }
 
+/**
+ * Deletes an assignment group and removes members from that group.
+ *
+ * @param {object} room - Mutable room object.
+ * @param {unknown} assignmentName - Group to remove.
+ * @returns {{players: Array<object>, assignmentScores: Record<string, number>} | null} Updated room state or null.
+ */
 function deleteAssignmentGroupInRoom(room, assignmentName) {
   if (!room) return null;
 
@@ -86,6 +137,13 @@ function deleteAssignmentGroupInRoom(room, assignmentName) {
   };
 }
 
+/**
+ * Automatically distributes players across generated team names.
+ *
+ * @param {object} room - Mutable room object.
+ * @param {number} [targetSize=5] - Desired players per team.
+ * @returns {{players: Array<object>, assignmentScores: Record<string, number>} | null} Updated room state or null.
+ */
 function autoAssignPlayersInRoom(room, targetSize = 5) {
   if (!room) return null;
 

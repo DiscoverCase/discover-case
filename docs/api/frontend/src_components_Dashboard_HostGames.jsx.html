@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: src/components/Dashboard/HostGames.jsx</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: src/components/Dashboard/HostGames.jsx</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @fileoverview Host-side game launcher and in-room game management panel.
+ */
+
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { getHostGroups } from '../../api';
+import { useSocket } from '../../useSocket';
+import Navbar from '../Navbar/Navbar';
+import ScavengerHostPanel from '../games/scavenger/ScavengerHostPanel';
+import TriviaHostPanel from '../games/trivia/TriviaHostPanel';
+import './dashboard.css';
+
+export default function HostGames() {
+  const navigate = useNavigate();
+  const { user, isAuthenticated, authLoaded } = useAuth();
+  const { socket, connected, setRoomCode } = useSocket();
+
+  const [hostRoomCode, setHostRoomCode] = useState(() => {
+    try {
+      return window.localStorage.getItem('host_room_code');
+    } catch {
+      return null;
+    }
+  });
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [activeHostPanel, setActiveHostPanel] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!authLoaded) return;
+
+    if (!isAuthenticated) {
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    if (user?.role !== 'host') {
+      navigate('/waiting-room', { replace: true });
+      return;
+    }
+
+    const loadHostCode = async () => {
+      if (hostRoomCode) return;
+
+      try {
+        const res = await getHostGroups(user.id);
+        const groups = res?.groups || [];
+        const code = groups[0]?.code;
+        if (code) {
+          setHostRoomCode(code);
+          try {
+            localStorage.setItem('host_room_code', code);
+          } catch {
+            // ignore storage failures
+          }
+          return;
+        }
+      } catch (err) {
+        // handled below as fallback error
+      }
+
+      setError('No host group found. Create or join a room from Lobby first.');
+    };
+
+    loadHostCode();
+  }, [authLoaded, isAuthenticated, user, navigate, hostRoomCode]);
+
+  useEffect(() => {
+    if (!connected || !hostRoomCode) return;
+
+    setRoomCode(hostRoomCode);
+    socket.emit('host_room', hostRoomCode);
+
+    const handleHostError = ({ message }) => {
+      setError(message || 'Host error');
+    };
+
+    const handleGameEnded = () => {
+      setActiveHostPanel(null);
+      setSelectedGame(null);
+    };
+
+    socket.on('host_error', handleHostError);
+    socket.on('game_ended', handleGameEnded);
+
+    return () => {
+      socket.off('host_error', handleHostError);
+      socket.off('game_ended', handleGameEnded);
+    };
+  }, [connected, hostRoomCode, setRoomCode, socket]);
+
+  const startGame = () => {
+    if (!selectedGame || !hostRoomCode) return;
+
+    socket.emit('host_started', { roomCode: hostRoomCode, gameType: selectedGame });
+    setActiveHostPanel(selectedGame);
+  };
+
+  const endGame = () => {
+    if (!hostRoomCode) return;
+    socket.emit('end_game', { roomCode: hostRoomCode });
+    setActiveHostPanel(null);
+    setSelectedGame(null);
+  };
+
+  return (
+    &lt;div className="dashboard-wrapper dashboard-view">
+      &lt;Navbar />
+      &lt;div className="dashboard-container">
+        &lt;div className="dashboard-bg" />
+
+        &lt;aside className="sidebar" style={{ height: 'fit-content' }}>
+          &lt;div className="sidebar-section" style={{ flex: '0 0 auto' }}>
+            &lt;span className="sidebar-section-title">Room code&lt;/span>
+            &lt;div className="room-code">{hostRoomCode || '-'}&lt;/div>
+            {error ? &lt;div className="status-msg error">{error}&lt;/div> : null}
+          &lt;/div>
+        &lt;/aside>
+
+        &lt;main className="main-content">
+          {!activeHostPanel ? (
+            &lt;section className="row-section">
+              &lt;div className="card game-selection">
+                &lt;h2 className="card-title">Game Selection&lt;/h2>
+                &lt;div className="row-inner">
+                  &lt;div
+                    className={`game-card ${selectedGame === 'trivia' ? 'selected' : ''}`}
+                    onClick={() => setSelectedGame('trivia')}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') setSelectedGame('trivia');
+                    }}
+                  >
+                    &lt;div className="game-card__header trivia">
+                      &lt;h3>CWRU Trivia&lt;/h3>
+                      &lt;p>Test your knowledge about campus history and fun facts.&lt;/p>
+                    &lt;/div>
+                    &lt;div className="game-card__body">
+                      &lt;ul className="game-features">
+                        &lt;li>Multiple choice questions&lt;/li>
+                        &lt;li>Learn campus facts and history&lt;/li>
+                        &lt;li>Beat your high score&lt;/li>
+                      &lt;/ul>
+                    &lt;/div>
+                  &lt;/div>
+
+                  &lt;div
+                    className={`game-card ${selectedGame === 'scavenger' ? 'selected' : ''}`}
+                    onClick={() => setSelectedGame('scavenger')}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') setSelectedGame('scavenger');
+                    }}
+                  >
+                    &lt;div className="game-card__header scavenger">
+                      &lt;h3>Scavenger Hunt&lt;/h3>
+                      &lt;p>Explore campus and complete photo challenges with your team.&lt;/p>
+                    &lt;/div>
+                    &lt;div className="game-card__body">
+                      &lt;ul className="game-features">
+                        &lt;li>Upload photos for each challenge&lt;/li>
+                        &lt;li>Earn points for your team&lt;/li>
+                        &lt;li>Compete on the leaderboard&lt;/li>
+                      &lt;/ul>
+                    &lt;/div>
+                  &lt;/div>
+                &lt;/div>
+
+                &lt;div style={{ marginTop: '18px', textAlign: 'center' }}>
+                  &lt;button
+                    type="button"
+                    className="primary-btn"
+                    onClick={startGame}
+                    disabled={!selectedGame || !hostRoomCode}
+                    style={{ width: '100%', maxWidth: '300px' }}
+                  >
+                    Start Game
+                  &lt;/button>
+                &lt;/div>
+              &lt;/div>
+            &lt;/section>
+          ) : (
+            &lt;section className="row-section">
+              &lt;div className="card moderation-queue">
+                &lt;div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  &lt;h2 className="card-title" style={{ margin: 0 }}>
+                    {activeHostPanel === 'scavenger' ? 'Scavenger Hunt - Host Panel' : 'CWRU Trivia - Host Controls'}
+                  &lt;/h2>
+                  &lt;button
+                    type="button"
+                    className="secondary-btn"
+                    style={{ fontSize: '13px' }}
+                    onClick={endGame}
+                  >
+                    End Session
+                  &lt;/button>
+                &lt;/div>
+
+                {activeHostPanel === 'scavenger' ? (
+                  &lt;ScavengerHostPanel />
+                ) : (
+                  &lt;TriviaHostPanel
+                    socket={socket}
+                    roomCode={hostRoomCode}
+                    connected={connected}
+                    onEnd={() => setActiveHostPanel(null)}
+                  />
+                )}
+              &lt;/div>
+            &lt;/section>
+          )}
+        &lt;/main>
+      &lt;/div>
+    &lt;/div>
+  );
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#SocketProvider">SocketProvider</a></li><li><a href="global.html#cancelScavengerSubmission">cancelScavengerSubmission</a></li><li><a href="global.html#createAccount">createAccount</a></li><li><a href="global.html#createRoom">createRoom</a></li><li><a href="global.html#fetchQuestion">fetchQuestion</a></li><li><a href="global.html#getHostGroups">getHostGroups</a></li><li><a href="global.html#getPlayerGroups">getPlayerGroups</a></li><li><a href="global.html#getScavengerChallenges">getScavengerChallenges</a></li><li><a href="global.html#getScavengerState">getScavengerState</a></li><li><a href="global.html#joinGroup">joinGroup</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#parseJson">parseJson</a></li><li><a href="global.html#reviewScavengerSubmission">reviewScavengerSubmission</a></li><li><a href="global.html#setGroupLock">setGroupLock</a></li><li><a href="global.html#setScavengerTeamName">setScavengerTeamName</a></li><li><a href="global.html#submitScavengerPhoto">submitScavengerPhoto</a></li><li><a href="global.html#useSocket">useSocket</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Tue Apr 28 2026 12:31:02 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

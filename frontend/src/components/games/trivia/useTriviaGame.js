@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Reusable trivia game hook for player answer flow and timing.
+ */
+
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSocket } from '../../../useSocket'
 import { fetchQuestion } from '../../../api'

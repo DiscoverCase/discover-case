@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: src/routes/scavenger.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: src/routes/scavenger.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @fileoverview Scavenger hunt state and REST routes with optional AI scan assist.
+ */
+
+const express = require('express');
+
+/**
+ * Creates a default in-memory scavenger state object for one group.
+ *
+ * @returns {{teamName: string, totalPoints: number, completedChallengeIds: string[], submissions: Array&lt;object>}}
+ */
+function createScavengerState() {
+  return {
+    teamName: '',
+    totalPoints: 0,
+    completedChallengeIds: [],
+    submissions: [],
+  };
+}
+
+/**
+ * Normalizes group codes for state keying.
+ *
+ * @param {unknown} groupCode - Raw group code.
+ * @returns {string} Uppercased code, or GLOBAL fallback.
+ */
+function normalizeGroupCode(groupCode) {
+  const code = String(groupCode || '').trim().toUpperCase();
+  return code || 'GLOBAL';
+}
+
+/**
+ * Derives the active group code from request context.
+ *
+ * @param {object} req - Express request.
+ * @returns {string} Normalized group code.
+ */
+function getGroupCodeFromReq(req) {
+  return normalizeGroupCode(req.query.groupCode || req.headers['x-group-code']);
+}
+
+/**
+ * Creates an in-memory store keyed by group code.
+ *
+ * @returns {object}
+ */
+function createScavengerStateStore() {
+  const byGroupCode = new Map();
+  return {
+    get(groupCode) {
+      const code = normalizeGroupCode(groupCode);
+      if (!byGroupCode.has(code)) {
+        byGroupCode.set(code, createScavengerState());
+      }
+      return byGroupCode.get(code);
+    },
+    _unsafeDebugSnapshot() {
+      return byGroupCode;
+    },
+  };
+}
+
+/**
+ * @param {object} options
+ * @param {object} options.scavengerChallenges - Same shape as scavengerChallenges.json
+ * @param {object} options.scavengerStateStore - In-memory state store per group
+ * @param {{scanImageData: Function}=} options.imageScanner - Optional image safety scanner
+ */
+function createScavengerRouter({ scavengerChallenges, scavengerStateStore, imageScanner }) {
+  const router = express.Router();
+
+  router.get('/api/scavenger/challenges', (req, res) => {
+    res.json(scavengerChallenges);
+  });
+
+  router.get('/api/scavenger/state', (req, res) => {
+    const scavengerState = scavengerStateStore.get(getGroupCodeFromReq(req));
+    const { teamName, totalPoints, completedChallengeIds, submissions } = scavengerState;
+
+    const categories = scavengerChallenges.categories || [];
+    const categoryStats = categories.map((cat) => {
+      const total = cat.challenges.length;
+      const completed = cat.challenges.filter((c) =>
+        completedChallengeIds.includes(c.id)
+      ).length;
+      return {
+        id: cat.id,
+        name: cat.name,
+        totalChallenges: total,
+        completedChallenges: completed,
+      };
+    });
+
+    res.json({
+      teamName,
+      totalPoints,
+      challengesCompleted: completedChallengeIds.length,
+      categoryStats,
+      submissions,
+    });
+  });
+
+  router.post('/api/scavenger/team', (req, res) => {
+    const scavengerState = scavengerStateStore.get(getGroupCodeFromReq(req));
+    const { teamName } = req.body;
+    if (!teamName || !teamName.trim()) {
+      return res.status(400).json({ error: 'Team name is required.' });
+    }
+    scavengerState.teamName = teamName.trim();
+    return res.json({ teamName: scavengerState.teamName });
+  });
+
+  router.post('/api/scavenger/submit', async (req, res) => {
+    const scavengerState = scavengerStateStore.get(getGroupCodeFromReq(req));
+    const { challengeId, imageData, playerName } = req.body;
+
+    if (!challengeId || !imageData) {
+      return res.status(400).json({ error: 'challengeId and imageData are required.' });
+    }
+
+    if (typeof imageData !== 'string' || !imageData.startsWith('data:image/')) {
+      return res.status(400).json({ error: 'Only image uploads are allowed.' });
+    }
+
+    const categories = scavengerChallenges.categories || [];
+    const category = categories.find((cat) =>
+      cat.challenges.some((c) => c.id === challengeId)
+    );
+    if (!category) {
+      return res.status(400).json({ error: 'Unknown challengeId.' });
+    }
+    const challenge = category.challenges.find((c) => c.id === challengeId);
+
+    let safetyScan = {
+      allowed: true,
+      scanned: false,
+      matchedPrompt: true,
+      reason: 'Safety scan not configured.',
+    };
+
+    if (imageScanner &amp;&amp; typeof imageScanner.scanImageData === 'function') {
+      try {
+        safetyScan = await imageScanner.scanImageData({
+          imageData,
+          challengeId,
+          challengeTitle: challenge &amp;&amp; challenge.title,
+          challengeDescription: challenge &amp;&amp; challenge.description,
+          categoryName: category.name,
+          playerName,
+        });
+      } catch (err) {
+        console.error('Gemini safety scan failed:', err);
+        safetyScan = {
+          allowed: false,
+          scanned: false,
+          matchedPrompt: false,
+          provider: 'gemini',
+          scannedAt: new Date().toISOString(),
+          reason:
+            'Gemini was unable to scan this image right now. Sent to host for manual review.',
+        };
+      }
+
+    }
+
+    const flaggedBySafetyScan = !safetyScan || safetyScan.allowed !== true;
+    const scanWasPerformed = !imageScanner
+      ? false
+      : (safetyScan &amp;&amp; safetyScan.scanned !== false);
+    const autoApproved = !flaggedBySafetyScan &amp;&amp; scanWasPerformed;
+
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const submission = {
+      id,
+      groupCode: getGroupCodeFromReq(req),
+      challengeId,
+      imageData,
+      playerName: (playerName || 'Player').trim(),
+      approved: autoApproved ? true : null,
+      comment: autoApproved ? 'Auto-approved by Gemini scan.' : '',
+      safetyScan,
+      createdAt: new Date().toISOString(),
+    };
+
+    scavengerState.submissions.push(submission);
+
+    if (autoApproved &amp;&amp; !scavengerState.completedChallengeIds.includes(challengeId)) {
+      scavengerState.completedChallengeIds.push(challengeId);
+      if (challenge &amp;&amp; typeof challenge.points === 'number') {
+        scavengerState.totalPoints += challenge.points;
+      }
+    }
+
+    return res.status(201).json({
+      submission,
+      flaggedBySafetyScan,
+      autoApproved,
+      scanWarning:
+        flaggedBySafetyScan &amp;&amp; safetyScan &amp;&amp; typeof safetyScan.reason === 'string'
+          ? safetyScan.reason
+          : '',
+    });
+  });
+
+  router.post('/api/scavenger/review', (req, res) => {
+    const scavengerState = scavengerStateStore.get(getGroupCodeFromReq(req));
+    const { submissionId, approved, comment } = req.body;
+
+    if (!submissionId || typeof approved !== 'boolean') {
+      return res.status(400).json({ error: 'submissionId and approved (boolean) are required.' });
+    }
+
+    const submission = scavengerState.submissions.find((s) => s.id === submissionId);
+    if (!submission) {
+      return res.status(404).json({ error: 'Submission not found.' });
+    }
+
+    submission.approved = approved;
+    submission.comment = (comment || '').trim();
+
+    if (approved &amp;&amp; !scavengerState.completedChallengeIds.includes(submission.challengeId)) {
+      scavengerState.completedChallengeIds.push(submission.challengeId);
+
+      const cats = scavengerChallenges.categories || [];
+      const cat = cats.find((c) =>
+        c.challenges.some((ch) => ch.id === submission.challengeId)
+      );
+      const challenge = cat
+        ? cat.challenges.find((ch) => ch.id === submission.challengeId)
+        : null;
+
+      if (challenge &amp;&amp; typeof challenge.points === 'number') {
+        scavengerState.totalPoints += challenge.points;
+      }
+    }
+
+    return res.json({
+      submission,
+      state: scavengerState,
+    });
+  });
+
+  router.post('/api/scavenger/cancel', (req, res) => {
+    const scavengerState = scavengerStateStore.get(getGroupCodeFromReq(req));
+    const { submissionId } = req.body;
+
+    if (!submissionId) {
+      return res.status(400).json({ error: 'submissionId is required.' });
+    }
+
+    const index = scavengerState.submissions.findIndex((s) => s.id === submissionId);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Submission not found.' });
+    }
+
+    const submission = scavengerState.submissions[index];
+    if (submission.approved !== null) {
+      return res
+        .status(400)
+        .json({ error: 'Cannot cancel a submission after it has been reviewed.' });
+    }
+
+    scavengerState.submissions.splice(index, 1);
+
+    return res.json({ state: scavengerState });
+  });
+
+  return router;
+}
+
+module.exports = {
+  createScavengerRouter,
+  createScavengerState,
+  createScavengerStateStore,
+};
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#assignPlayerGroupInRoom">assignPlayerGroupInRoom</a></li><li><a href="global.html#autoAssignPlayersInRoom">autoAssignPlayersInRoom</a></li><li><a href="global.html#buildRoomAssignments">buildRoomAssignments</a></li><li><a href="global.html#clearAssignmentsInRoom">clearAssignmentsInRoom</a></li><li><a href="global.html#createAuthRouter">createAuthRouter</a></li><li><a href="global.html#createGroupsRouter">createGroupsRouter</a></li><li><a href="global.html#createRoomWithCode">createRoomWithCode</a></li><li><a href="global.html#createScavengerRouter">createScavengerRouter</a></li><li><a href="global.html#createScavengerState">createScavengerState</a></li><li><a href="global.html#createScavengerStateStore">createScavengerStateStore</a></li><li><a href="global.html#createTestServer">createTestServer</a></li><li><a href="global.html#createUserTable">createUserTable</a></li><li><a href="global.html#deleteAssignmentGroupInRoom">deleteAssignmentGroupInRoom</a></li><li><a href="global.html#generateGroupCode">generateGroupCode</a></li><li><a href="global.html#getAssignmentScoresFromRoom">getAssignmentScoresFromRoom</a></li><li><a href="global.html#getGroupCodeFromReq">getGroupCodeFromReq</a></li><li><a href="global.html#loadRoomSnapshot">loadRoomSnapshot</a></li><li><a href="global.html#normalizeAssignedGroup">normalizeAssignedGroup</a></li><li><a href="global.html#normalizeGroupCode">normalizeGroupCode</a></li><li><a href="global.html#resolveGroupByCode">resolveGroupByCode</a></li><li><a href="global.html#rooms">rooms</a></li><li><a href="global.html#setAssignmentScoreInRoom">setAssignmentScoreInRoom</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Tue Apr 28 2026 12:31:00 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Unit and flow tests for scavenger route state transitions and scoring.
+ */
+
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const express = require('express')

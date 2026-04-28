@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Host dashboard for roster control, assignments, and game launch.
+ */
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -22,7 +26,7 @@ export default function Dashboard() {
   });
   const [isLocked, setIsLocked] = useState(false);
 
-  /** @type {Array<{ id: string, username: string, joinedAt?: string }>} */
+  /** @type {Array<{ id: string, username: string, joinedAt: (string|undefined) }>} */
   const [players, setPlayers] = useState([]);
   /** @type {string | null} */
   const [error, setError] = useState('');

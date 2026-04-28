@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Group and room creation routes with host authorization checks.
+ */
+
 const express = require('express')
 
 /**
@@ -5,7 +9,7 @@ const express = require('express')
  *
  * @param {object} deps
  * @param {{ query: Function }} deps.pool - pg Pool-like object
- * @param {() => string} deps.generateGroupCode - function that returns a new group code
+ * @param {Function} deps.generateGroupCode - function that returns a new group code
  */
 function createGroupsRouter({ pool, generateGroupCode }) {
   if (!pool?.query) throw new Error('createGroupsRouter requires pool.query')

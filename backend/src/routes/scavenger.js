@@ -1,5 +1,14 @@
+/**
+ * @fileoverview Scavenger hunt state and REST routes with optional AI scan assist.
+ */
+
 const express = require('express');
 
+/**
+ * Creates a default in-memory scavenger state object for one group.
+ *
+ * @returns {{teamName: string, totalPoints: number, completedChallengeIds: string[], submissions: Array<object>}}
+ */
 function createScavengerState() {
   return {
     teamName: '',
@@ -9,15 +18,32 @@ function createScavengerState() {
   };
 }
 
+/**
+ * Normalizes group codes for state keying.
+ *
+ * @param {unknown} groupCode - Raw group code.
+ * @returns {string} Uppercased code, or GLOBAL fallback.
+ */
 function normalizeGroupCode(groupCode) {
   const code = String(groupCode || '').trim().toUpperCase();
   return code || 'GLOBAL';
 }
 
+/**
+ * Derives the active group code from request context.
+ *
+ * @param {object} req - Express request.
+ * @returns {string} Normalized group code.
+ */
 function getGroupCodeFromReq(req) {
   return normalizeGroupCode(req.query.groupCode || req.headers['x-group-code']);
 }
 
+/**
+ * Creates an in-memory store keyed by group code.
+ *
+ * @returns {object}
+ */
 function createScavengerStateStore() {
   const byGroupCode = new Map();
   return {
@@ -37,7 +63,7 @@ function createScavengerStateStore() {
 /**
  * @param {object} options
  * @param {object} options.scavengerChallenges - Same shape as scavengerChallenges.json
- * @param {ReturnType<typeof createScavengerStateStore>} options.scavengerStateStore - In-memory state store per group
+ * @param {object} options.scavengerStateStore - In-memory state store per group
  * @param {{scanImageData: Function}=} options.imageScanner - Optional image safety scanner
  */
 function createScavengerRouter({ scavengerChallenges, scavengerStateStore, imageScanner }) {
